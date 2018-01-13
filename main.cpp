@@ -123,18 +123,75 @@ void display_device_information(ssize_t device_index, libusb_device *device)
   libusb_free_config_descriptor(configuration_descriptor);
 }
 
+//  Procedure to perform processing with the device
+
+void use_device(libusb_device_handle *dev_handle)
+{
+  int return_code = -1;
+
+  //  Find out whether a kernel driver has claimed the device
+
+  if(libusb_kernel_driver_active(dev_handle, 0) == 1)
+  {
+    //  Detach the kernel driver
+
+    if(libusb_detach_kernel_driver(dev_handle, 0) == 0)
+    {
+      printf("Detached kernel driver\n");
+    }
+  }
+
+  //  Claim the interface
+
+  if((return_code = libusb_claim_interface(dev_handle, 0)) < 0)
+  {
+    //  Unable to claim the interface
+
+    printf("Unable to claim the interface\n");
+  }
+  else
+  {
+    //  Claimed the interface
+
+    printf("Claimed the interface\n");
+
+    //  Read / Write
+
+
+
+    //  Finished Read / Write
+
+    //  Release the interface
+
+    if((return_code = libusb_release_interface(dev_handle, 0)) < 0)
+    {
+      //  Unable to release the interface
+
+      printf("Unable to release the interface\n");
+    }
+    else
+    {
+      //  Released the interface
+
+      printf("Released the interface\n");
+    }
+  }
+}
+
 //////////////////
 //  Entry Point //
 //////////////////
 
 int main()
 {
-  libusb_device  **device_list  = NULL;
-  libusb_context  *context      = NULL;
+  libusb_device        **device_list          = NULL;
+  libusb_context        *context              = NULL;
+  libusb_device_handle  *chosen_device_handle = NULL;
 
   int return_code = -1;
 
-  ssize_t number_of_devices = -1;
+  ssize_t number_of_devices   = -1;
+  ssize_t chosen_device_index = -1;
 
   //  Initialise a library context
 
@@ -176,9 +233,41 @@ int main()
       display_device_information(device_index, device_list[device_index]);
     }
 
+    //  Request the user to select the device index to use
+
+    printf("\nSelect the index of the device to use ...> ");
+    scanf("%zd", &chosen_device_index);
+
+    printf("Chose device at index %zd\n", chosen_device_index);
+
+    //  Open the device at the chosen index
+
+    if((return_code = libusb_open(device_list[chosen_device_index], &chosen_device_handle)) < 0)
+    {
+      //  Unable to open the device at the chosen index
+
+      printf("Unable to open device at index %zd - Error Code : %d\n", chosen_device_index, return_code);
+    }
+    else
+    {
+      printf("Opened the device at index %zd\n", chosen_device_index);
+    }
+
     //  Free the device list and unreference the connected USB devices in it
 
     libusb_free_device_list(device_list, 1);
+
+    //  Use the device
+
+    use_device(chosen_device_handle);
+
+    //  Finished using the device
+
+    //  Close the opened device
+
+    libusb_close(chosen_device_handle);
+
+    printf("Closed the device at index %zd\n", chosen_device_index);
   }
 
   //  Close the library context
